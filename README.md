@@ -1,5 +1,7 @@
 # IncidentPilot
 
+**Live demo:** [Open IncidentPilot](https://charan-incidentpilot.onrender.com). Hosted on Render free tier; the service sleeps when idle, so the first visit may take about 50 seconds to wake.
+
 IncidentPilot is a stateful incident-triage simulator. A bounded workflow reads logs, metrics, and runbook entries, records evidence, forms a scenario diagnosis, and pauses for human approval before it records a simulated action. SQLite checkpoints every transition and exposes a replayable event trace.
 
 ## What it demonstrates
