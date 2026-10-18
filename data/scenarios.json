@@ -1,0 +1,82 @@
+{
+  "api-latency-after-release": {
+    "name": "API latency after release",
+    "summary": "p95 latency rose after a rollout while database saturation stayed normal.",
+    "logs": [
+      {"id": "log-101", "time": "14:05", "service": "checkout-api", "level": "error", "message": "Upstream inventory request exceeded 2500 ms timeout"},
+      {"id": "log-102", "time": "14:06", "service": "checkout-api", "level": "warn", "message": "Retry budget exhausted for inventory client"},
+      {"id": "log-103", "time": "14:07", "service": "deploy-controller", "level": "info", "message": "release checkout-api 8f2c completed at 14:02"}
+    ],
+    "metrics": [
+      {"id": "metric-201", "name": "checkout_api_p95_ms", "baseline": 180, "current": 2140, "unit": "ms"},
+      {"id": "metric-202", "name": "inventory_p95_ms", "baseline": 140, "current": 1820, "unit": "ms"},
+      {"id": "metric-203", "name": "database_cpu_pct", "baseline": 52, "current": 49, "unit": "%"}
+    ],
+    "runbook": [
+      {"id": "runbook-301", "service": "checkout-api", "step": "Compare the affected request path and dependency latency with the last known-good release."},
+      {"id": "runbook-302", "service": "checkout-api", "step": "A rollback requires incident commander approval and an explicit change record."}
+    ],
+    "diagnosis": {"summary": "Checkout requests are waiting on a slow inventory dependency after the latest release.", "root_cause": "inventory_dependency_latency", "confidence": 0.91},
+    "proposed_action": {"name": "roll back checkout-api release 8f2c", "description": "Simulate a rollback to the previous known-good release, then recheck p95 latency.", "impact": "Changes the checkout-api release state in the simulator only."}
+  },
+  "payment-connection-pool": {
+    "name": "Payment database pool exhausted",
+    "summary": "payment requests fail while active connections reach the configured pool cap.",
+    "logs": [
+      {"id": "log-111", "time": "09:12", "service": "payment-api", "level": "error", "message": "connection acquire timeout after 3000 ms"},
+      {"id": "log-112", "time": "09:13", "service": "payment-api", "level": "warn", "message": "active connection count reached max pool size 80"},
+      {"id": "log-113", "time": "09:13", "service": "payment-api", "level": "error", "message": "request handler waiting for database connection"}
+    ],
+    "metrics": [
+      {"id": "metric-211", "name": "payment_db_pool_active", "baseline": 31, "current": 80, "unit": "connections"},
+      {"id": "metric-212", "name": "payment_db_pool_waiters", "baseline": 0, "current": 124, "unit": "requests"},
+      {"id": "metric-213", "name": "payment_api_error_rate", "baseline": 0.004, "current": 0.22, "unit": "ratio"}
+    ],
+    "runbook": [
+      {"id": "runbook-311", "service": "payment-api", "step": "Check connection checkout duration and long-running queries before changing pool size."},
+      {"id": "runbook-312", "service": "payment-api", "step": "Do not raise the connection limit without database capacity review and approval."}
+    ],
+    "diagnosis": {"summary": "The payment service is queuing requests because its database connection pool is saturated.", "root_cause": "database_connection_pool_exhaustion", "confidence": 0.94},
+    "proposed_action": {"name": "enable payment queue backpressure", "description": "Simulate reducing new payment work until active connections return below the pool threshold.", "impact": "The simulator records a controlled load-shedding action without touching a live system."}
+  },
+  "auth-certificate-expiry": {
+    "name": "Authentication certificate renewal failure",
+    "summary": "authentication requests fail with certificate validity errors shortly after renewal.",
+    "logs": [
+      {"id": "log-121", "time": "02:01", "service": "identity-gateway", "level": "error", "message": "x509: certificate has expired or is not yet valid"},
+      {"id": "log-122", "time": "02:02", "service": "cert-manager", "level": "error", "message": "renewal challenge failed for login.internal"},
+      {"id": "log-123", "time": "02:03", "service": "identity-gateway", "level": "warn", "message": "token exchange returned status 401 for 37 percent of requests"}
+    ],
+    "metrics": [
+      {"id": "metric-221", "name": "identity_401_rate", "baseline": 0.002, "current": 0.37, "unit": "ratio"},
+      {"id": "metric-222", "name": "certificate_seconds_to_expiry", "baseline": 86400, "current": -240, "unit": "seconds"},
+      {"id": "metric-223", "name": "identity_gateway_cpu_pct", "baseline": 24, "current": 25, "unit": "%"}
+    ],
+    "runbook": [
+      {"id": "runbook-321", "service": "identity-gateway", "step": "Validate certificate chain, issuer, not-before, and not-after timestamps."},
+      {"id": "runbook-322", "service": "identity-gateway", "step": "Credential rotation requires security owner review and approval."}
+    ],
+    "diagnosis": {"summary": "The identity gateway is rejecting requests because certificate renewal failed and the active certificate is expired.", "root_cause": "expired_identity_certificate", "confidence": 0.97},
+    "proposed_action": {"name": "stage certificate renewal", "description": "Simulate staging a renewed certificate for security review before activation.", "impact": "Only records a staged change in the simulator; no certificate is issued or installed."}
+  },
+  "queue-backlog": {
+    "name": "Worker queue backlog",
+    "summary": "background jobs accumulate while worker heartbeat rate falls.",
+    "logs": [
+      {"id": "log-131", "time": "16:42", "service": "report-worker", "level": "error", "message": "worker heartbeat missed for partition 3"},
+      {"id": "log-132", "time": "16:43", "service": "queue-consumer", "level": "warn", "message": "consumer concurrency dropped from 12 to 2"},
+      {"id": "log-133", "time": "16:44", "service": "report-worker", "level": "error", "message": "out of memory while building quarterly export"}
+    ],
+    "metrics": [
+      {"id": "metric-231", "name": "report_queue_depth", "baseline": 240, "current": 18340, "unit": "messages"},
+      {"id": "metric-232", "name": "report_worker_heartbeat_rate", "baseline": 12, "current": 2, "unit": "workers"},
+      {"id": "metric-233", "name": "report_worker_memory_pct", "baseline": 46, "current": 99, "unit": "%"}
+    ],
+    "runbook": [
+      {"id": "runbook-331", "service": "report-worker", "step": "Inspect recent worker restarts and memory pressure before scaling consumers."},
+      {"id": "runbook-332", "service": "report-worker", "step": "Scaling or replaying jobs requires an owner-approved change."}
+    ],
+    "diagnosis": {"summary": "Report workers are restarting under memory pressure, reducing consumption and creating a growing backlog.", "root_cause": "worker_memory_exhaustion", "confidence": 0.89},
+    "proposed_action": {"name": "pause large report jobs and scale workers", "description": "Simulate pausing large exports and adding two workers after a capacity check.", "impact": "The simulator records the proposed capacity response without changing a queue or worker pool."}
+  }
+}

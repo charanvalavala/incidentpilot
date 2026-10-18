@@ -1,0 +1,6 @@
+[
+  {"scenario":"api-latency-after-release","expected_root_cause":"inventory_dependency_latency"},
+  {"scenario":"payment-connection-pool","expected_root_cause":"database_connection_pool_exhaustion"},
+  {"scenario":"auth-certificate-expiry","expected_root_cause":"expired_identity_certificate"},
+  {"scenario":"queue-backlog","expected_root_cause":"worker_memory_exhaustion"}
+]
