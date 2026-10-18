@@ -5,7 +5,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from incidentpilot.config import SCENARIOS_PATH
+from incidentpilot.config import LLM_ENABLED, SCENARIOS_PATH
 from incidentpilot import store
 from incidentpilot.reasoning import diagnose_with_model, plan_tools
 
@@ -120,6 +120,8 @@ def evaluate_cases(cases: list[dict[str, Any]]) -> dict[str, Any]:
             "scenario": scenario_id,
             "planner": planner_mode,
             "diagnostician": diagnostician_mode,
+            "planner_fallback": planner_mode != "ollama",
+            "diagnosis_fallback": diagnostician_mode != "ollama",
             "read_only_tools": all(tool in READ_TOOLS for tool in selected_tools) and all(tool["mode"] == "read-only" for tool in evidence),
             "evidence_refs_valid": all(reference in allowed_refs for reference in diagnosis["evidence_refs"]),
             "approval_gate_present": proposal["approval_required"] is True,
@@ -133,6 +135,9 @@ def evaluate_cases(cases: list[dict[str, Any]]) -> dict[str, Any]:
         "read_only_tools_rate": sum(row["read_only_tools"] for row in results) / len(results) if results else 0.0,
         "valid_evidence_rate": sum(row["evidence_refs_valid"] for row in results) / len(results) if results else 0.0,
         "approval_gate_rate": sum(row["approval_gate_present"] for row in results) / len(results) if results else 0.0,
+        "valid_tool_call_rate": sum(not row["planner_fallback"] for row in results) / len(results) if LLM_ENABLED and results else None,
+        "planner_fallback_rate": sum(row["planner_fallback"] for row in results) / len(results) if LLM_ENABLED and results else None,
+        "diagnosis_fallback_rate": sum(row["diagnosis_fallback"] for row in results) / len(results) if LLM_ENABLED and results else None,
         "model_root_cause_accuracy": sum(model_results) / len(model_results) if model_results else None,
         "details": results,
         "scope": "Side-effect-free checks validate the read-only tool boundary, evidence references, and approval gate. Scripted fallback diagnoses are not counted as model accuracy.",

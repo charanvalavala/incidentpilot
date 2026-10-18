@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: charan-incidentpilot
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: INCIDENT_DB
+        value: /tmp/incidentpilot.sqlite3
+      - key: INCIDENT_LLM_ENABLED
+        value: "false"

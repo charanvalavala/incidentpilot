@@ -8,4 +8,4 @@ COPY data ./data
 ENV PYTHONPATH=/app/src
 ENV INCIDENT_DB=/app/data/runtime/incidents.sqlite3
 EXPOSE 8000
-CMD ["uvicorn", "incidentpilot.api:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "exec uvicorn incidentpilot.api:app --host 0.0.0.0 --port ${PORT:-8000}"]
