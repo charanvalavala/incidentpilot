@@ -8,7 +8,7 @@ IncidentPilot is a stateful incident-triage simulator. A bounded workflow reads 
 - Optional Ollama planner and structured diagnoser; malformed or out-of-policy model output falls back to the scenario policy.
 - A persistent incident state machine with versioned SQLite checkpoints and an event trace.
 - A human approval or rejection gate before action recording.
-- Four seeded failure scenarios and a side-effect-free evaluator for read-only tool policy, evidence references, and approval gating. Scripted fallback labels are not reported as model accuracy.
+- Four synthetic seeded failure scenarios and a side-effect-free evaluator for read-only tool policy, evidence references, and approval gating. Scripted fallback labels are not reported as model accuracy.
 - A browser dashboard for investigation, evidence inspection, trace review, and action approval.
 - Docker packaging for local deployment.
 
