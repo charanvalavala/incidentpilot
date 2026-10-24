@@ -1,3 +1,7 @@
+import sys
+
+import pytest
+
 from incidentpilot import model_evaluation
 
 
@@ -42,3 +46,16 @@ def test_model_evaluation_requires_an_enabled_local_model(monkeypatch):
         assert "INCIDENT_LLM_ENABLED=true" in str(error)
     else:
         raise AssertionError("Model evaluation should refuse to silently score policy fallback.")
+
+
+def test_model_evaluation_cli_explains_missing_model(monkeypatch, capsys):
+    monkeypatch.setattr(model_evaluation, "LLM_ENABLED", False)
+    monkeypatch.setattr(sys, "argv", ["incidentpilot-model-evaluation"])
+
+    with pytest.raises(SystemExit) as error:
+        model_evaluation.main()
+
+    captured = capsys.readouterr()
+    assert error.value.code == 2
+    assert "Set INCIDENT_LLM_ENABLED=true" in captured.err
+    assert "Traceback" not in captured.err

@@ -58,7 +58,10 @@ def main() -> None:
     parser.add_argument("--output", type=Path, default=ROOT / "reports" / "model-evaluation.json")
     arguments = parser.parse_args()
     cases = [json.loads(line) for line in EVAL_PATH.read_text(encoding="utf-8").splitlines() if line.strip()]
-    report = run(cases)
+    try:
+        report = run(cases)
+    except (RuntimeError, ValueError) as error:
+        parser.error(str(error))
     arguments.output.parent.mkdir(parents=True, exist_ok=True)
     arguments.output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({key: value for key, value in report.items() if key != "details"}, indent=2))
