@@ -34,6 +34,7 @@ function render(incident, trace = []) {
             "Saved investigations are read-only. Use the live simulator to record a decision.",
           );
         const actor = $("reviewer").value.trim();
+        const decisionVersion = version;
         if (actor.length < 2)
           throw new Error(
             "Enter a reviewer label with at least two characters.",
@@ -48,11 +49,13 @@ function render(incident, trace = []) {
           const events = await request(`/api/incidents/${incident.id}/trace`, {
             key: "trace",
           });
-          render(updated, events);
+          if (decisionVersion === version) render(updated, events);
         } catch (error) {
-          $("approve").disabled = false;
-          $("reject").disabled = false;
-          throw error;
+          if (decisionVersion === version) {
+            if ($("approve")) $("approve").disabled = false;
+            if ($("reject")) $("reject").disabled = false;
+            throw error;
+          }
         }
       }),
     );
@@ -66,11 +69,17 @@ function scenarios(items) {
     .join("");
   for (const button of document.querySelectorAll("[data-id]"))
     button.addEventListener("click", () => {
-      if (savedOnly) {
-        sample().then((data) => {
-          const record = data.incidents?.[button.dataset.id];
-          if (record) render(record.incident, record.trace);
-        });
+      if (snapshot) {
+        const token = ++version;
+        for (const item of document.querySelectorAll(".scenario"))
+          item.classList.toggle("selected", item === button);
+        sample()
+          .then((data) => {
+            const record = data.incidents?.[button.dataset.id];
+            if (record && token === version)
+              render(record.incident, record.trace);
+          })
+          .catch((error) => notify(error.message, true));
         return;
       }
       start(button.dataset.id, button);
