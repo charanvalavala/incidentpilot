@@ -2,7 +2,11 @@ from incidentpilot import reasoning
 
 
 def test_planner_falls_back_when_model_requests_unknown_tool(monkeypatch):
-    monkeypatch.setattr(reasoning, "generate_json", lambda system, payload: {"tools": ["write_to_cluster"]})
+    monkeypatch.setattr(
+        reasoning,
+        "generate_json",
+        lambda system, payload: {"tools": ["write_to_cluster"]},
+    )
 
     tools, mode = reasoning.plan_tools({"summary": "latency is rising"})
 
@@ -23,7 +27,10 @@ def test_diagnosis_rejects_evidence_ids_outside_the_tool_results(monkeypatch):
         },
     )
 
-    assert reasoning.diagnose_with_model(evidence, ["inventory_dependency_latency"]) is None
+    assert (
+        reasoning.diagnose_with_model(evidence, ["inventory_dependency_latency"])
+        is None
+    )
 
 
 def test_diagnosis_accepts_only_allowed_causes_and_evidence(monkeypatch):

@@ -1,10 +1,24 @@
 from incidentpilot import engine
 
 
-def test_policy_evaluation_does_not_count_scripted_labels_as_model_accuracy(monkeypatch):
-    monkeypatch.setattr(engine, "plan_tools", lambda scenario: (["read_logs", "read_metrics", "read_runbook"], "policy-fallback"))
+def test_policy_evaluation_does_not_count_scripted_labels_as_model_accuracy(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        engine,
+        "plan_tools",
+        lambda scenario: (
+            ["read_logs", "read_metrics", "read_runbook"],
+            "policy-fallback",
+        ),
+    )
     monkeypatch.setattr(engine, "diagnose_with_model", lambda evidence, causes: None)
-    cases = [{"scenario": "payment-connection-pool", "expected_root_cause": "database_connection_pool_exhaustion"}]
+    cases = [
+        {
+            "scenario": "payment-connection-pool",
+            "expected_root_cause": "database_connection_pool_exhaustion",
+        }
+    ]
 
     report = engine.evaluate_cases(cases)
 

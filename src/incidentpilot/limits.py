@@ -20,5 +20,7 @@ def enforce_limit(request: Request, route: str, maximum: int):
         while bucket and current - bucket[0] >= WINDOW_SECONDS:
             bucket.popleft()
         if len(bucket) >= maximum:
-            raise HTTPException(status_code=429, detail="Request limit reached. Try again shortly.")
+            raise HTTPException(
+                status_code=429, detail="Request limit reached. Try again shortly."
+            )
         bucket.append(current)

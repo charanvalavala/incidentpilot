@@ -1,0 +1,966 @@
+{
+  "captured_at": "2026-10-31",
+  "scenarios": [
+    {
+      "id": "api-latency-after-release",
+      "name": "API latency after release",
+      "summary": "p95 latency rose after a rollout while database saturation stayed normal."
+    },
+    {
+      "id": "payment-connection-pool",
+      "name": "Payment database pool exhausted",
+      "summary": "payment requests fail while active connections reach the configured pool cap."
+    },
+    {
+      "id": "auth-certificate-expiry",
+      "name": "Authentication certificate renewal failure",
+      "summary": "authentication requests fail with certificate validity errors shortly after renewal."
+    },
+    {
+      "id": "queue-backlog",
+      "name": "Worker queue backlog",
+      "summary": "background jobs accumulate while worker heartbeat rate falls."
+    }
+  ],
+  "incident": {
+    "id": "517477d17a11",
+    "scenario": "api-latency-after-release",
+    "status": "awaiting_approval",
+    "state": {
+      "scenario_name": "API latency after release",
+      "evidence": [
+        {
+          "tool": "read_logs",
+          "mode": "read-only",
+          "items": [
+            {
+              "id": "log-101",
+              "time": "14:05",
+              "service": "checkout-api",
+              "level": "error",
+              "message": "Upstream inventory request exceeded 2500 ms timeout"
+            },
+            {
+              "id": "log-102",
+              "time": "14:06",
+              "service": "checkout-api",
+              "level": "warn",
+              "message": "Retry budget exhausted for inventory client"
+            },
+            {
+              "id": "log-103",
+              "time": "14:07",
+              "service": "deploy-controller",
+              "level": "info",
+              "message": "release checkout-api 8f2c completed at 14:02"
+            }
+          ]
+        },
+        {
+          "tool": "read_metrics",
+          "mode": "read-only",
+          "items": [
+            {
+              "id": "metric-201",
+              "name": "checkout_api_p95_ms",
+              "baseline": 180,
+              "current": 2140,
+              "unit": "ms"
+            },
+            {
+              "id": "metric-202",
+              "name": "inventory_p95_ms",
+              "baseline": 140,
+              "current": 1820,
+              "unit": "ms"
+            },
+            {
+              "id": "metric-203",
+              "name": "database_cpu_pct",
+              "baseline": 52,
+              "current": 49,
+              "unit": "%"
+            }
+          ]
+        },
+        {
+          "tool": "read_runbook",
+          "mode": "read-only",
+          "items": [
+            {
+              "id": "runbook-301",
+              "service": "checkout-api",
+              "step": "Compare the affected request path and dependency latency with the last known-good release."
+            },
+            {
+              "id": "runbook-302",
+              "service": "checkout-api",
+              "step": "A rollback requires incident commander approval and an explicit change record."
+            }
+          ]
+        }
+      ],
+      "diagnosis": {
+        "summary": "The trained classifier suggests inventory dependency latency.",
+        "root_cause": "inventory_dependency_latency",
+        "confidence": 0.66242799176268,
+        "evidence_refs": [
+          "log-101",
+          "log-102",
+          "log-103",
+          "metric-201",
+          "metric-202",
+          "metric-203"
+        ]
+      },
+      "proposal": {
+        "action": "review dependency rollback and traffic controls",
+        "description": "Review the evidence-backed response before recording any simulation.",
+        "impact": "Records a reviewed simulation only; no external system is changed.",
+        "abstained": false,
+        "evidence_refs": [
+          "log-101",
+          "log-102",
+          "metric-202"
+        ],
+        "execution_mode": "simulation",
+        "approval_required": true,
+        "policy": "No production mutation is available in this demo. The simulated action is gated on an explicit human approval event."
+      },
+      "approval": null,
+      "result": null,
+      "reasoning": {
+        "planner": "policy-fallback",
+        "diagnostician": "classifier"
+      }
+    },
+    "version": 4,
+    "created_at": "2026-10-31T17:03:38+00:00",
+    "updated_at": "2026-10-31T17:03:39+00:00"
+  },
+  "trace": [
+    {
+      "event_type": "incident.created",
+      "payload": {
+        "scenario": "api-latency-after-release",
+        "status": "investigating"
+      },
+      "created_at": "2026-10-31T17:03:38+00:00"
+    },
+    {
+      "event_type": "agent.evidence_collected",
+      "payload": {
+        "tools": [
+          "read_logs",
+          "read_metrics",
+          "read_runbook"
+        ]
+      },
+      "created_at": "2026-10-31T17:03:38+00:00"
+    },
+    {
+      "event_type": "agent.diagnosed",
+      "payload": {
+        "summary": "The trained classifier suggests inventory dependency latency.",
+        "root_cause": "inventory_dependency_latency",
+        "confidence": 0.66242799176268,
+        "evidence_refs": [
+          "log-101",
+          "log-102",
+          "log-103",
+          "metric-201",
+          "metric-202",
+          "metric-203"
+        ]
+      },
+      "created_at": "2026-10-31T17:03:39+00:00"
+    },
+    {
+      "event_type": "agent.action_proposed",
+      "payload": {
+        "action": "review dependency rollback and traffic controls",
+        "description": "Review the evidence-backed response before recording any simulation.",
+        "impact": "Records a reviewed simulation only; no external system is changed.",
+        "abstained": false,
+        "evidence_refs": [
+          "log-101",
+          "log-102",
+          "metric-202"
+        ],
+        "execution_mode": "simulation",
+        "approval_required": true,
+        "policy": "No production mutation is available in this demo. The simulated action is gated on an explicit human approval event."
+      },
+      "created_at": "2026-10-31T17:03:39+00:00"
+    }
+  ],
+  "benchmark": {
+    "model": "TF-IDF + LogisticRegression (20 synthetic training cases)",
+    "backend": "classifier",
+    "diagnosis_method": "TF-IDF supervised classification",
+    "cases": 8,
+    "valid_tool_call_rate": null,
+    "end_to_end_accuracy": 1.0,
+    "diagnosis_coverage": 1.0,
+    "diagnosis_fallback_rate": 0.0,
+    "evidence_ref_valid_rate": 1.0,
+    "model_root_cause_accuracy": 1.0,
+    "accuracy_denominator": 8,
+    "scope": "Hand-authored synthetic cases across four seeded root-cause classes. Accuracy is measured only on valid model diagnoses; fallback cases are reported separately."
+  },
+  "policy": {
+    "cases": 4,
+    "read_only_tools_rate": 1.0,
+    "valid_evidence_rate": 1.0,
+    "approval_gate_rate": 1.0,
+    "valid_tool_call_rate": 0.0,
+    "planner_fallback_rate": 1.0,
+    "diagnosis_fallback_rate": 1.0,
+    "model_root_cause_accuracy": 0.0,
+    "details": [
+      {
+        "scenario": "api-latency-after-release",
+        "planner": "policy-fallback",
+        "diagnostician": "classifier",
+        "planner_fallback": true,
+        "diagnosis_fallback": true,
+        "read_only_tools": true,
+        "evidence_refs_valid": true,
+        "approval_gate_present": true,
+        "model_root_cause_match": false
+      },
+      {
+        "scenario": "payment-connection-pool",
+        "planner": "policy-fallback",
+        "diagnostician": "classifier",
+        "planner_fallback": true,
+        "diagnosis_fallback": true,
+        "read_only_tools": true,
+        "evidence_refs_valid": true,
+        "approval_gate_present": true,
+        "model_root_cause_match": false
+      },
+      {
+        "scenario": "auth-certificate-expiry",
+        "planner": "policy-fallback",
+        "diagnostician": "classifier",
+        "planner_fallback": true,
+        "diagnosis_fallback": true,
+        "read_only_tools": true,
+        "evidence_refs_valid": true,
+        "approval_gate_present": true,
+        "model_root_cause_match": false
+      },
+      {
+        "scenario": "queue-backlog",
+        "planner": "policy-fallback",
+        "diagnostician": "classifier",
+        "planner_fallback": true,
+        "diagnosis_fallback": true,
+        "read_only_tools": true,
+        "evidence_refs_valid": true,
+        "approval_gate_present": true,
+        "model_root_cause_match": false
+      }
+    ],
+    "scope": "Side-effect-free checks validate the read-only tool boundary, evidence references, and approval gate. Scripted fallback diagnoses are not counted as model accuracy."
+  },
+  "incidents": {
+    "api-latency-after-release": {
+      "incident": {
+        "id": "517477d17a11",
+        "scenario": "api-latency-after-release",
+        "status": "awaiting_approval",
+        "state": {
+          "scenario_name": "API latency after release",
+          "evidence": [
+            {
+              "tool": "read_logs",
+              "mode": "read-only",
+              "items": [
+                {
+                  "id": "log-101",
+                  "time": "14:05",
+                  "service": "checkout-api",
+                  "level": "error",
+                  "message": "Upstream inventory request exceeded 2500 ms timeout"
+                },
+                {
+                  "id": "log-102",
+                  "time": "14:06",
+                  "service": "checkout-api",
+                  "level": "warn",
+                  "message": "Retry budget exhausted for inventory client"
+                },
+                {
+                  "id": "log-103",
+                  "time": "14:07",
+                  "service": "deploy-controller",
+                  "level": "info",
+                  "message": "release checkout-api 8f2c completed at 14:02"
+                }
+              ]
+            },
+            {
+              "tool": "read_metrics",
+              "mode": "read-only",
+              "items": [
+                {
+                  "id": "metric-201",
+                  "name": "checkout_api_p95_ms",
+                  "baseline": 180,
+                  "current": 2140,
+                  "unit": "ms"
+                },
+                {
+                  "id": "metric-202",
+                  "name": "inventory_p95_ms",
+                  "baseline": 140,
+                  "current": 1820,
+                  "unit": "ms"
+                },
+                {
+                  "id": "metric-203",
+                  "name": "database_cpu_pct",
+                  "baseline": 52,
+                  "current": 49,
+                  "unit": "%"
+                }
+              ]
+            },
+            {
+              "tool": "read_runbook",
+              "mode": "read-only",
+              "items": [
+                {
+                  "id": "runbook-301",
+                  "service": "checkout-api",
+                  "step": "Compare the affected request path and dependency latency with the last known-good release."
+                },
+                {
+                  "id": "runbook-302",
+                  "service": "checkout-api",
+                  "step": "A rollback requires incident commander approval and an explicit change record."
+                }
+              ]
+            }
+          ],
+          "diagnosis": {
+            "summary": "The trained classifier suggests inventory dependency latency.",
+            "root_cause": "inventory_dependency_latency",
+            "confidence": 0.66242799176268,
+            "evidence_refs": [
+              "log-101",
+              "log-102",
+              "log-103",
+              "metric-201",
+              "metric-202",
+              "metric-203"
+            ]
+          },
+          "proposal": {
+            "action": "review dependency rollback and traffic controls",
+            "description": "Review the evidence-backed response before recording any simulation.",
+            "impact": "Records a reviewed simulation only; no external system is changed.",
+            "abstained": false,
+            "evidence_refs": [
+              "log-101",
+              "log-102",
+              "metric-202"
+            ],
+            "execution_mode": "simulation",
+            "approval_required": true,
+            "policy": "No production mutation is available in this demo. The simulated action is gated on an explicit human approval event."
+          },
+          "approval": null,
+          "result": null,
+          "reasoning": {
+            "planner": "policy-fallback",
+            "diagnostician": "classifier"
+          }
+        },
+        "version": 4,
+        "created_at": "2026-10-31T17:03:38+00:00",
+        "updated_at": "2026-10-31T17:03:39+00:00"
+      },
+      "trace": [
+        {
+          "event_type": "incident.created",
+          "payload": {
+            "scenario": "api-latency-after-release",
+            "status": "investigating"
+          },
+          "created_at": "2026-10-31T17:03:38+00:00"
+        },
+        {
+          "event_type": "agent.evidence_collected",
+          "payload": {
+            "tools": [
+              "read_logs",
+              "read_metrics",
+              "read_runbook"
+            ]
+          },
+          "created_at": "2026-10-31T17:03:38+00:00"
+        },
+        {
+          "event_type": "agent.diagnosed",
+          "payload": {
+            "summary": "The trained classifier suggests inventory dependency latency.",
+            "root_cause": "inventory_dependency_latency",
+            "confidence": 0.66242799176268,
+            "evidence_refs": [
+              "log-101",
+              "log-102",
+              "log-103",
+              "metric-201",
+              "metric-202",
+              "metric-203"
+            ]
+          },
+          "created_at": "2026-10-31T17:03:39+00:00"
+        },
+        {
+          "event_type": "agent.action_proposed",
+          "payload": {
+            "action": "review dependency rollback and traffic controls",
+            "description": "Review the evidence-backed response before recording any simulation.",
+            "impact": "Records a reviewed simulation only; no external system is changed.",
+            "abstained": false,
+            "evidence_refs": [
+              "log-101",
+              "log-102",
+              "metric-202"
+            ],
+            "execution_mode": "simulation",
+            "approval_required": true,
+            "policy": "No production mutation is available in this demo. The simulated action is gated on an explicit human approval event."
+          },
+          "created_at": "2026-10-31T17:03:39+00:00"
+        }
+      ]
+    },
+    "payment-connection-pool": {
+      "incident": {
+        "id": "321b125f5826",
+        "scenario": "payment-connection-pool",
+        "status": "awaiting_approval",
+        "state": {
+          "scenario_name": "Payment database pool exhausted",
+          "evidence": [
+            {
+              "tool": "read_logs",
+              "mode": "read-only",
+              "items": [
+                {
+                  "id": "log-111",
+                  "time": "09:12",
+                  "service": "payment-api",
+                  "level": "error",
+                  "message": "connection acquire timeout after 3000 ms"
+                },
+                {
+                  "id": "log-112",
+                  "time": "09:13",
+                  "service": "payment-api",
+                  "level": "warn",
+                  "message": "active connection count reached max pool size 80"
+                },
+                {
+                  "id": "log-113",
+                  "time": "09:13",
+                  "service": "payment-api",
+                  "level": "error",
+                  "message": "request handler waiting for database connection"
+                }
+              ]
+            },
+            {
+              "tool": "read_metrics",
+              "mode": "read-only",
+              "items": [
+                {
+                  "id": "metric-211",
+                  "name": "payment_db_pool_active",
+                  "baseline": 31,
+                  "current": 80,
+                  "unit": "connections"
+                },
+                {
+                  "id": "metric-212",
+                  "name": "payment_db_pool_waiters",
+                  "baseline": 0,
+                  "current": 124,
+                  "unit": "requests"
+                },
+                {
+                  "id": "metric-213",
+                  "name": "payment_api_error_rate",
+                  "baseline": 0.004,
+                  "current": 0.22,
+                  "unit": "ratio"
+                }
+              ]
+            },
+            {
+              "tool": "read_runbook",
+              "mode": "read-only",
+              "items": [
+                {
+                  "id": "runbook-311",
+                  "service": "payment-api",
+                  "step": "Check connection checkout duration and long-running queries before changing pool size."
+                },
+                {
+                  "id": "runbook-312",
+                  "service": "payment-api",
+                  "step": "Do not raise the connection limit without database capacity review and approval."
+                }
+              ]
+            }
+          ],
+          "diagnosis": {
+            "summary": "The trained classifier suggests database connection pool exhaustion.",
+            "root_cause": "database_connection_pool_exhaustion",
+            "confidence": 0.5076863738535261,
+            "evidence_refs": [
+              "log-111",
+              "log-112",
+              "log-113",
+              "metric-211",
+              "metric-212",
+              "metric-213"
+            ]
+          },
+          "proposal": {
+            "action": "review connection pressure and enable queue backpressure",
+            "description": "Review the evidence-backed response before recording any simulation.",
+            "impact": "Records a reviewed simulation only; no external system is changed.",
+            "abstained": false,
+            "evidence_refs": [
+              "log-111",
+              "log-112",
+              "metric-211",
+              "metric-212"
+            ],
+            "execution_mode": "simulation",
+            "approval_required": true,
+            "policy": "No production mutation is available in this demo. The simulated action is gated on an explicit human approval event."
+          },
+          "approval": null,
+          "result": null,
+          "reasoning": {
+            "planner": "policy-fallback",
+            "diagnostician": "classifier"
+          }
+        },
+        "version": 4,
+        "created_at": "2026-10-31T17:03:39+00:00",
+        "updated_at": "2026-10-31T17:03:39+00:00"
+      },
+      "trace": [
+        {
+          "event_type": "incident.created",
+          "payload": {
+            "scenario": "payment-connection-pool",
+            "status": "investigating"
+          },
+          "created_at": "2026-10-31T17:03:39+00:00"
+        },
+        {
+          "event_type": "agent.evidence_collected",
+          "payload": {
+            "tools": [
+              "read_logs",
+              "read_metrics",
+              "read_runbook"
+            ]
+          },
+          "created_at": "2026-10-31T17:03:39+00:00"
+        },
+        {
+          "event_type": "agent.diagnosed",
+          "payload": {
+            "summary": "The trained classifier suggests database connection pool exhaustion.",
+            "root_cause": "database_connection_pool_exhaustion",
+            "confidence": 0.5076863738535261,
+            "evidence_refs": [
+              "log-111",
+              "log-112",
+              "log-113",
+              "metric-211",
+              "metric-212",
+              "metric-213"
+            ]
+          },
+          "created_at": "2026-10-31T17:03:39+00:00"
+        },
+        {
+          "event_type": "agent.action_proposed",
+          "payload": {
+            "action": "review connection pressure and enable queue backpressure",
+            "description": "Review the evidence-backed response before recording any simulation.",
+            "impact": "Records a reviewed simulation only; no external system is changed.",
+            "abstained": false,
+            "evidence_refs": [
+              "log-111",
+              "log-112",
+              "metric-211",
+              "metric-212"
+            ],
+            "execution_mode": "simulation",
+            "approval_required": true,
+            "policy": "No production mutation is available in this demo. The simulated action is gated on an explicit human approval event."
+          },
+          "created_at": "2026-10-31T17:03:39+00:00"
+        }
+      ]
+    },
+    "auth-certificate-expiry": {
+      "incident": {
+        "id": "5135928f20dc",
+        "scenario": "auth-certificate-expiry",
+        "status": "awaiting_approval",
+        "state": {
+          "scenario_name": "Authentication certificate renewal failure",
+          "evidence": [
+            {
+              "tool": "read_logs",
+              "mode": "read-only",
+              "items": [
+                {
+                  "id": "log-121",
+                  "time": "02:01",
+                  "service": "identity-gateway",
+                  "level": "error",
+                  "message": "x509: certificate has expired or is not yet valid"
+                },
+                {
+                  "id": "log-122",
+                  "time": "02:02",
+                  "service": "cert-manager",
+                  "level": "error",
+                  "message": "renewal challenge failed for login.internal"
+                },
+                {
+                  "id": "log-123",
+                  "time": "02:03",
+                  "service": "identity-gateway",
+                  "level": "warn",
+                  "message": "token exchange returned status 401 for 37 percent of requests"
+                }
+              ]
+            },
+            {
+              "tool": "read_metrics",
+              "mode": "read-only",
+              "items": [
+                {
+                  "id": "metric-221",
+                  "name": "identity_401_rate",
+                  "baseline": 0.002,
+                  "current": 0.37,
+                  "unit": "ratio"
+                },
+                {
+                  "id": "metric-222",
+                  "name": "certificate_seconds_to_expiry",
+                  "baseline": 86400,
+                  "current": -240,
+                  "unit": "seconds"
+                },
+                {
+                  "id": "metric-223",
+                  "name": "identity_gateway_cpu_pct",
+                  "baseline": 24,
+                  "current": 25,
+                  "unit": "%"
+                }
+              ]
+            },
+            {
+              "tool": "read_runbook",
+              "mode": "read-only",
+              "items": [
+                {
+                  "id": "runbook-321",
+                  "service": "identity-gateway",
+                  "step": "Validate certificate chain, issuer, not-before, and not-after timestamps."
+                },
+                {
+                  "id": "runbook-322",
+                  "service": "identity-gateway",
+                  "step": "Credential rotation requires security owner review and approval."
+                }
+              ]
+            }
+          ],
+          "diagnosis": {
+            "summary": "The trained classifier suggests expired identity certificate.",
+            "root_cause": "expired_identity_certificate",
+            "confidence": 0.6219237994287073,
+            "evidence_refs": [
+              "log-121",
+              "log-122",
+              "log-123",
+              "metric-221",
+              "metric-222",
+              "metric-223"
+            ]
+          },
+          "proposal": {
+            "action": "stage certificate renewal for security review",
+            "description": "Review the evidence-backed response before recording any simulation.",
+            "impact": "Records a reviewed simulation only; no external system is changed.",
+            "abstained": false,
+            "evidence_refs": [
+              "log-121",
+              "log-122",
+              "metric-222"
+            ],
+            "execution_mode": "simulation",
+            "approval_required": true,
+            "policy": "No production mutation is available in this demo. The simulated action is gated on an explicit human approval event."
+          },
+          "approval": null,
+          "result": null,
+          "reasoning": {
+            "planner": "policy-fallback",
+            "diagnostician": "classifier"
+          }
+        },
+        "version": 4,
+        "created_at": "2026-10-31T17:03:39+00:00",
+        "updated_at": "2026-10-31T17:03:39+00:00"
+      },
+      "trace": [
+        {
+          "event_type": "incident.created",
+          "payload": {
+            "scenario": "auth-certificate-expiry",
+            "status": "investigating"
+          },
+          "created_at": "2026-10-31T17:03:39+00:00"
+        },
+        {
+          "event_type": "agent.evidence_collected",
+          "payload": {
+            "tools": [
+              "read_logs",
+              "read_metrics",
+              "read_runbook"
+            ]
+          },
+          "created_at": "2026-10-31T17:03:39+00:00"
+        },
+        {
+          "event_type": "agent.diagnosed",
+          "payload": {
+            "summary": "The trained classifier suggests expired identity certificate.",
+            "root_cause": "expired_identity_certificate",
+            "confidence": 0.6219237994287073,
+            "evidence_refs": [
+              "log-121",
+              "log-122",
+              "log-123",
+              "metric-221",
+              "metric-222",
+              "metric-223"
+            ]
+          },
+          "created_at": "2026-10-31T17:03:39+00:00"
+        },
+        {
+          "event_type": "agent.action_proposed",
+          "payload": {
+            "action": "stage certificate renewal for security review",
+            "description": "Review the evidence-backed response before recording any simulation.",
+            "impact": "Records a reviewed simulation only; no external system is changed.",
+            "abstained": false,
+            "evidence_refs": [
+              "log-121",
+              "log-122",
+              "metric-222"
+            ],
+            "execution_mode": "simulation",
+            "approval_required": true,
+            "policy": "No production mutation is available in this demo. The simulated action is gated on an explicit human approval event."
+          },
+          "created_at": "2026-10-31T17:03:39+00:00"
+        }
+      ]
+    },
+    "queue-backlog": {
+      "incident": {
+        "id": "d252ac85e2c8",
+        "scenario": "queue-backlog",
+        "status": "awaiting_approval",
+        "state": {
+          "scenario_name": "Worker queue backlog",
+          "evidence": [
+            {
+              "tool": "read_logs",
+              "mode": "read-only",
+              "items": [
+                {
+                  "id": "log-131",
+                  "time": "16:42",
+                  "service": "report-worker",
+                  "level": "error",
+                  "message": "worker heartbeat missed for partition 3"
+                },
+                {
+                  "id": "log-132",
+                  "time": "16:43",
+                  "service": "queue-consumer",
+                  "level": "warn",
+                  "message": "consumer concurrency dropped from 12 to 2"
+                },
+                {
+                  "id": "log-133",
+                  "time": "16:44",
+                  "service": "report-worker",
+                  "level": "error",
+                  "message": "out of memory while building quarterly export"
+                }
+              ]
+            },
+            {
+              "tool": "read_metrics",
+              "mode": "read-only",
+              "items": [
+                {
+                  "id": "metric-231",
+                  "name": "report_queue_depth",
+                  "baseline": 240,
+                  "current": 18340,
+                  "unit": "messages"
+                },
+                {
+                  "id": "metric-232",
+                  "name": "report_worker_heartbeat_rate",
+                  "baseline": 12,
+                  "current": 2,
+                  "unit": "workers"
+                },
+                {
+                  "id": "metric-233",
+                  "name": "report_worker_memory_pct",
+                  "baseline": 46,
+                  "current": 99,
+                  "unit": "%"
+                }
+              ]
+            },
+            {
+              "tool": "read_runbook",
+              "mode": "read-only",
+              "items": [
+                {
+                  "id": "runbook-331",
+                  "service": "report-worker",
+                  "step": "Inspect recent worker restarts and memory pressure before scaling consumers."
+                },
+                {
+                  "id": "runbook-332",
+                  "service": "report-worker",
+                  "step": "Scaling or replaying jobs requires an owner-approved change."
+                }
+              ]
+            }
+          ],
+          "diagnosis": {
+            "summary": "The trained classifier suggests worker memory exhaustion.",
+            "root_cause": "worker_memory_exhaustion",
+            "confidence": 0.6203574625003997,
+            "evidence_refs": [
+              "log-131",
+              "log-132",
+              "log-133",
+              "metric-231",
+              "metric-232",
+              "metric-233"
+            ]
+          },
+          "proposal": {
+            "action": "pause memory-heavy jobs and review worker capacity",
+            "description": "Review the evidence-backed response before recording any simulation.",
+            "impact": "Records a reviewed simulation only; no external system is changed.",
+            "abstained": false,
+            "evidence_refs": [
+              "log-133",
+              "metric-233"
+            ],
+            "execution_mode": "simulation",
+            "approval_required": true,
+            "policy": "No production mutation is available in this demo. The simulated action is gated on an explicit human approval event."
+          },
+          "approval": null,
+          "result": null,
+          "reasoning": {
+            "planner": "policy-fallback",
+            "diagnostician": "classifier"
+          }
+        },
+        "version": 4,
+        "created_at": "2026-10-31T17:03:39+00:00",
+        "updated_at": "2026-10-31T17:03:39+00:00"
+      },
+      "trace": [
+        {
+          "event_type": "incident.created",
+          "payload": {
+            "scenario": "queue-backlog",
+            "status": "investigating"
+          },
+          "created_at": "2026-10-31T17:03:39+00:00"
+        },
+        {
+          "event_type": "agent.evidence_collected",
+          "payload": {
+            "tools": [
+              "read_logs",
+              "read_metrics",
+              "read_runbook"
+            ]
+          },
+          "created_at": "2026-10-31T17:03:39+00:00"
+        },
+        {
+          "event_type": "agent.diagnosed",
+          "payload": {
+            "summary": "The trained classifier suggests worker memory exhaustion.",
+            "root_cause": "worker_memory_exhaustion",
+            "confidence": 0.6203574625003997,
+            "evidence_refs": [
+              "log-131",
+              "log-132",
+              "log-133",
+              "metric-231",
+              "metric-232",
+              "metric-233"
+            ]
+          },
+          "created_at": "2026-10-31T17:03:39+00:00"
+        },
+        {
+          "event_type": "agent.action_proposed",
+          "payload": {
+            "action": "pause memory-heavy jobs and review worker capacity",
+            "description": "Review the evidence-backed response before recording any simulation.",
+            "impact": "Records a reviewed simulation only; no external system is changed.",
+            "abstained": false,
+            "evidence_refs": [
+              "log-133",
+              "metric-233"
+            ],
+            "execution_mode": "simulation",
+            "approval_required": true,
+            "policy": "No production mutation is available in this demo. The simulated action is gated on an explicit human approval event."
+          },
+          "created_at": "2026-10-31T17:03:39+00:00"
+        }
+      ]
+    }
+  }
+}

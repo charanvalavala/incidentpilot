@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -10,7 +12,19 @@ from incidentpilot.config import STATIC_DIR
 from incidentpilot.engine import approve, create, evaluate_cases, scenarios
 from incidentpilot.limits import enforce_limit
 
-app = FastAPI(title="IncidentPilot", version="1.0.0", description="Stateful incident triage, read-only evidence tools, trace replay, and human approval gating.")
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    store.initialize()
+    yield
+
+
+app = FastAPI(
+    title="IncidentPilot",
+    version="2.0.0",
+    description="Measured incident classification, evidence checks, trace replay, and human approval gating.",
+    lifespan=lifespan,
+)
 
 
 class StartRequest(BaseModel):
@@ -26,11 +40,6 @@ class EvalRequest(BaseModel):
     cases: list[dict[str, str]] = Field(min_length=1, max_length=20)
 
 
-@app.on_event("startup")
-def initialize():
-    store.initialize()
-
-
 @app.get("/")
 def home():
     return FileResponse(STATIC_DIR / "index.html")
@@ -43,7 +52,10 @@ def health():
 
 @app.get("/api/scenarios")
 def list_scenarios():
-    return [{"id": key, "name": value["name"], "summary": value["summary"]} for key, value in scenarios().items()]
+    return [
+        {"id": key, "name": value["name"], "summary": value["summary"]}
+        for key, value in scenarios().items()
+    ]
 
 
 @app.get("/api/incidents")
@@ -95,3 +107,5 @@ def evaluate(request: Request, payload: EvalRequest):
 
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="frontend")

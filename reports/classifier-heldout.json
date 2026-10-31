@@ -1,0 +1,98 @@
+{
+  "model": "TF-IDF + LogisticRegression (20 synthetic training cases)",
+  "backend": "classifier",
+  "transformers_method": null,
+  "model_revision": null,
+  "diagnosis_method": "TF-IDF supervised classification",
+  "cases": 8,
+  "valid_tool_call_rate": null,
+  "end_to_end_accuracy": 1.0,
+  "diagnosis_coverage": 1.0,
+  "diagnosis_fallback_rate": 0.0,
+  "evidence_ref_valid_rate": 1.0,
+  "model_root_cause_accuracy": 1.0,
+  "accuracy_denominator": 8,
+  "scope": "Hand-authored synthetic cases across four seeded root-cause classes. Accuracy is measured only on valid model diagnoses; fallback cases are reported separately.",
+  "details": [
+    {
+      "case": "stress-0-0",
+      "expected_root_cause": "inventory_dependency_latency",
+      "predicted_root_cause": "inventory_dependency_latency",
+      "planner_mode": "policy-fallback",
+      "diagnosis_fallback": false,
+      "evidence_refs_valid": true,
+      "model_root_cause_match": true,
+      "latency_seconds": 1.61
+    },
+    {
+      "case": "stress-0-1",
+      "expected_root_cause": "inventory_dependency_latency",
+      "predicted_root_cause": "inventory_dependency_latency",
+      "planner_mode": "policy-fallback",
+      "diagnosis_fallback": false,
+      "evidence_refs_valid": true,
+      "model_root_cause_match": true,
+      "latency_seconds": 0.0
+    },
+    {
+      "case": "stress-1-0",
+      "expected_root_cause": "database_connection_pool_exhaustion",
+      "predicted_root_cause": "database_connection_pool_exhaustion",
+      "planner_mode": "policy-fallback",
+      "diagnosis_fallback": false,
+      "evidence_refs_valid": true,
+      "model_root_cause_match": true,
+      "latency_seconds": 0.0
+    },
+    {
+      "case": "stress-1-1",
+      "expected_root_cause": "database_connection_pool_exhaustion",
+      "predicted_root_cause": "database_connection_pool_exhaustion",
+      "planner_mode": "policy-fallback",
+      "diagnosis_fallback": false,
+      "evidence_refs_valid": true,
+      "model_root_cause_match": true,
+      "latency_seconds": 0.0
+    },
+    {
+      "case": "stress-2-0",
+      "expected_root_cause": "expired_identity_certificate",
+      "predicted_root_cause": "expired_identity_certificate",
+      "planner_mode": "policy-fallback",
+      "diagnosis_fallback": false,
+      "evidence_refs_valid": true,
+      "model_root_cause_match": true,
+      "latency_seconds": 0.0
+    },
+    {
+      "case": "stress-2-1",
+      "expected_root_cause": "expired_identity_certificate",
+      "predicted_root_cause": "expired_identity_certificate",
+      "planner_mode": "policy-fallback",
+      "diagnosis_fallback": false,
+      "evidence_refs_valid": true,
+      "model_root_cause_match": true,
+      "latency_seconds": 0.0
+    },
+    {
+      "case": "stress-3-0",
+      "expected_root_cause": "worker_memory_exhaustion",
+      "predicted_root_cause": "worker_memory_exhaustion",
+      "planner_mode": "policy-fallback",
+      "diagnosis_fallback": false,
+      "evidence_refs_valid": true,
+      "model_root_cause_match": true,
+      "latency_seconds": 0.0
+    },
+    {
+      "case": "stress-3-1",
+      "expected_root_cause": "worker_memory_exhaustion",
+      "predicted_root_cause": "worker_memory_exhaustion",
+      "planner_mode": "policy-fallback",
+      "diagnosis_fallback": false,
+      "evidence_refs_valid": true,
+      "model_root_cause_match": true,
+      "latency_seconds": 0.0
+    }
+  ]
+}

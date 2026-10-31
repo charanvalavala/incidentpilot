@@ -1,0 +1,195 @@
+{
+  "model": "Qwen/Qwen2.5-0.5B-Instruct",
+  "backend": "transformers",
+  "cases": 20,
+  "valid_tool_call_rate": 1.0,
+  "end_to_end_accuracy": 0.0,
+  "diagnosis_coverage": 0.0,
+  "diagnosis_fallback_rate": 1.0,
+  "evidence_ref_valid_rate": null,
+  "model_root_cause_accuracy": null,
+  "accuracy_denominator": 0,
+  "scope": "Hand-authored synthetic cases across four seeded root-cause classes. Accuracy is measured only on valid model diagnoses; fallback cases are reported separately.",
+  "details": [
+    {
+      "case": "inventory-01",
+      "expected_root_cause": "inventory_dependency_latency",
+      "predicted_root_cause": null,
+      "planner_mode": "transformers",
+      "diagnosis_fallback": true,
+      "evidence_refs_valid": false,
+      "model_root_cause_match": false
+    },
+    {
+      "case": "inventory-02",
+      "expected_root_cause": "inventory_dependency_latency",
+      "predicted_root_cause": null,
+      "planner_mode": "transformers",
+      "diagnosis_fallback": true,
+      "evidence_refs_valid": false,
+      "model_root_cause_match": false
+    },
+    {
+      "case": "inventory-03",
+      "expected_root_cause": "inventory_dependency_latency",
+      "predicted_root_cause": null,
+      "planner_mode": "transformers",
+      "diagnosis_fallback": true,
+      "evidence_refs_valid": false,
+      "model_root_cause_match": false
+    },
+    {
+      "case": "inventory-04",
+      "expected_root_cause": "inventory_dependency_latency",
+      "predicted_root_cause": null,
+      "planner_mode": "transformers",
+      "diagnosis_fallback": true,
+      "evidence_refs_valid": false,
+      "model_root_cause_match": false
+    },
+    {
+      "case": "inventory-05",
+      "expected_root_cause": "inventory_dependency_latency",
+      "predicted_root_cause": null,
+      "planner_mode": "transformers",
+      "diagnosis_fallback": true,
+      "evidence_refs_valid": false,
+      "model_root_cause_match": false
+    },
+    {
+      "case": "pool-01",
+      "expected_root_cause": "database_connection_pool_exhaustion",
+      "predicted_root_cause": null,
+      "planner_mode": "transformers",
+      "diagnosis_fallback": true,
+      "evidence_refs_valid": false,
+      "model_root_cause_match": false
+    },
+    {
+      "case": "pool-02",
+      "expected_root_cause": "database_connection_pool_exhaustion",
+      "predicted_root_cause": null,
+      "planner_mode": "transformers",
+      "diagnosis_fallback": true,
+      "evidence_refs_valid": false,
+      "model_root_cause_match": false
+    },
+    {
+      "case": "pool-03",
+      "expected_root_cause": "database_connection_pool_exhaustion",
+      "predicted_root_cause": null,
+      "planner_mode": "transformers",
+      "diagnosis_fallback": true,
+      "evidence_refs_valid": false,
+      "model_root_cause_match": false
+    },
+    {
+      "case": "pool-04",
+      "expected_root_cause": "database_connection_pool_exhaustion",
+      "predicted_root_cause": null,
+      "planner_mode": "transformers",
+      "diagnosis_fallback": true,
+      "evidence_refs_valid": false,
+      "model_root_cause_match": false
+    },
+    {
+      "case": "pool-05",
+      "expected_root_cause": "database_connection_pool_exhaustion",
+      "predicted_root_cause": null,
+      "planner_mode": "transformers",
+      "diagnosis_fallback": true,
+      "evidence_refs_valid": false,
+      "model_root_cause_match": false
+    },
+    {
+      "case": "certificate-01",
+      "expected_root_cause": "expired_identity_certificate",
+      "predicted_root_cause": null,
+      "planner_mode": "transformers",
+      "diagnosis_fallback": true,
+      "evidence_refs_valid": false,
+      "model_root_cause_match": false
+    },
+    {
+      "case": "certificate-02",
+      "expected_root_cause": "expired_identity_certificate",
+      "predicted_root_cause": null,
+      "planner_mode": "transformers",
+      "diagnosis_fallback": true,
+      "evidence_refs_valid": false,
+      "model_root_cause_match": false
+    },
+    {
+      "case": "certificate-03",
+      "expected_root_cause": "expired_identity_certificate",
+      "predicted_root_cause": null,
+      "planner_mode": "transformers",
+      "diagnosis_fallback": true,
+      "evidence_refs_valid": false,
+      "model_root_cause_match": false
+    },
+    {
+      "case": "certificate-04",
+      "expected_root_cause": "expired_identity_certificate",
+      "predicted_root_cause": null,
+      "planner_mode": "transformers",
+      "diagnosis_fallback": true,
+      "evidence_refs_valid": false,
+      "model_root_cause_match": false
+    },
+    {
+      "case": "certificate-05",
+      "expected_root_cause": "expired_identity_certificate",
+      "predicted_root_cause": null,
+      "planner_mode": "transformers",
+      "diagnosis_fallback": true,
+      "evidence_refs_valid": false,
+      "model_root_cause_match": false
+    },
+    {
+      "case": "memory-01",
+      "expected_root_cause": "worker_memory_exhaustion",
+      "predicted_root_cause": null,
+      "planner_mode": "transformers",
+      "diagnosis_fallback": true,
+      "evidence_refs_valid": false,
+      "model_root_cause_match": false
+    },
+    {
+      "case": "memory-02",
+      "expected_root_cause": "worker_memory_exhaustion",
+      "predicted_root_cause": null,
+      "planner_mode": "transformers",
+      "diagnosis_fallback": true,
+      "evidence_refs_valid": false,
+      "model_root_cause_match": false
+    },
+    {
+      "case": "memory-03",
+      "expected_root_cause": "worker_memory_exhaustion",
+      "predicted_root_cause": null,
+      "planner_mode": "transformers",
+      "diagnosis_fallback": true,
+      "evidence_refs_valid": false,
+      "model_root_cause_match": false
+    },
+    {
+      "case": "memory-04",
+      "expected_root_cause": "worker_memory_exhaustion",
+      "predicted_root_cause": null,
+      "planner_mode": "transformers",
+      "diagnosis_fallback": true,
+      "evidence_refs_valid": false,
+      "model_root_cause_match": false
+    },
+    {
+      "case": "memory-05",
+      "expected_root_cause": "worker_memory_exhaustion",
+      "predicted_root_cause": null,
+      "planner_mode": "transformers",
+      "diagnosis_fallback": true,
+      "evidence_refs_valid": false,
+      "model_root_cause_match": false
+    }
+  ]
+}

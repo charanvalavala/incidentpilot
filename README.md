@@ -1,97 +1,82 @@
 # IncidentPilot
 
-**Live demo:** [Open IncidentPilot](https://charan-incidentpilot.onrender.com). Hosted on Render free tier; the service sleeps when idle, so the first visit may take about 50 seconds to wake.
+A measured incident classifier and optional LLM investigation workflow, with evidence checks and a review gate.
 
-IncidentPilot is a stateful incident-triage simulator. A bounded workflow reads logs, metrics, and runbook entries, records evidence, forms a scenario diagnosis, and pauses for human approval before it records a simulated action. SQLite checkpoints every transition and exposes a replayable event trace.
+[Instant saved walkthrough](https://charanvalavala.github.io/demos/incidentpilot/) · [Live app](https://charan-incidentpilot.onrender.com)
 
-## What it demonstrates
+## What runs
 
-- Tool-based investigation across read-only log, metric, and runbook sources, with a strict tool allowlist.
-- Optional Ollama planner and structured diagnoser; malformed or out-of-policy model output falls back to the scenario policy.
-- A persistent incident state machine with versioned SQLite checkpoints and an event trace.
-- A human approval or rejection gate before action recording.
-- Four synthetic seeded failure scenarios and a side-effect-free evaluator for read-only tool policy, evidence references, and approval gating. Scripted fallback labels are not reported as model accuracy.
-- A browser dashboard for investigation, evidence inspection, trace review, and action approval.
-- Docker packaging for local deployment.
+The default backend is a real TF-IDF + logistic regression classifier trained on twenty hand-authored synthetic cases. It reads log messages and metric names, excludes untrusted runbook text from classification, and abstains when its score or margin is too low. The workflow then checks observed signals against the diagnosis. A conflicting or unsupported diagnosis produces escalation rather than a scenario's hidden prewritten action.
 
-## Run locally
+This classifier is small enough for the public CPU demo. It classifies four predefined causes; it is not an open-ended autonomous SRE. Probabilities are uncalibrated. Evidence references identify supplied observations, not independently proven causal support.
 
-```powershell
-py -3.11 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
-$env:PYTHONPATH = "src"
-uvicorn incidentpilot.api:app --reload
-```
+SQLite records evidence collection, diagnosis, proposal and approval decisions. Investigation tools only read bundled scenarios. The optional model planner selects allowed tools; if selected evidence is insufficient or confidence is low, the workflow gathers the remaining tools and re-evaluates. Approval records a simulation only. Reviewer names are unverified labels, not authenticated identities.
 
-Open `http://127.0.0.1:8000`. The API stores incidents in `data/runtime/incidents.sqlite3`; set `INCIDENT_DB` to use a different path. It retains at most 250 incidents, limits incident creation and evaluation requests, and writes no incident records when the evaluator runs.
+## Measured AI results
 
-On macOS or Linux, use:
+| Backend | Data | Valid diagnosis coverage | Correct diagnoses |
+| --- | --- | ---: | ---: |
+| Unconstrained Qwen JSON | 20 development cases | 0/20 | 0/20 |
+| Qwen conditional likelihood over fixed cause descriptions | Same 20 development cases | 20/20 | 10/20 |
+| Qwen conditional likelihood | 8 new synthetic stress cases | 8/8 | 4/8 |
+| TF-IDF + logistic regression | 8 stress cases, trained only on the 20 development cases | 8/8 | 8/8 |
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements.txt
-export PYTHONPATH=src
-uvicorn incidentpilot.api:app --reload
-```
+The stress set includes misleading historical notes and prompt-like runbook instructions. It is only eight hand-authored cases across the same four cause classes, with recognizable language. Perfect classifier scores on this tiny set do not demonstrate production reliability, novel-cause detection or robustness to arbitrary adversaries. LLM candidate scoring changes the diagnosis method; it does not repair the model's free-form JSON capability. Set `INCIDENT_TRANSFORMERS_METHOD=generated-json` to reproduce the unconstrained method. The failed initial run is retained in `reports/unconstrained-model-baseline.json`.
 
-The default scenario uses the deterministic policy path and needs no model service. To enable local model-based planning and diagnosis, set `INCIDENT_LLM_ENABLED=true`, configure `OLLAMA_URL` and `OLLAMA_MODEL`, and start Ollama. Every requested tool is checked against the read-only allowlist, model evidence references are validated, and no model output can bypass the approval gate. The optional Ollama path is not included in the deterministic demo evaluation.
+`reports/classifier-heldout.json`, `reports/model-evaluation.json` and `reports/transformers-heldout.json` retain case-level outputs and fallback/coverage denominators. The LLM planner selected valid tools on these runs; the classifier's planner metric is null because it uses a fixed read-tool policy. Reference validity checks check IDs only; the response-action gate is a separate check.
 
-## API
+## Reproduce model comparisons
 
-- `GET /api/scenarios`
-- `POST /api/incidents` with `{"scenario":"api-latency-after-release"}`
-- `GET /api/incidents/{incident_id}`
-- `GET /api/incidents/{incident_id}/trace`
-- `POST /api/incidents/{incident_id}/approval` with a reviewer and decision
-- `POST /api/evaluate` with up to 20 scenario cases. The evaluator checks policy behavior without persisting incidents.
-
-For the focused test suite:
-
-```powershell
-$env:PYTHONPATH = "src"
-python -m pip install -r requirements-dev.txt
-python -m pytest -q
-```
+Default trained classifier:
 
 ```bash
-python -m pip install -r requirements-dev.txt
-PYTHONPATH=src python -m pytest -q
+INCIDENT_MODEL_BACKEND=classifier PYTHONPATH=src python -m incidentpilot.model_evaluation --cases data/model-eval-stress-8.jsonl --output reports/classifier-heldout.json
 ```
 
-### Local model evaluation
-
-`data/model-eval-20.jsonl` contains 20 hand-authored synthetic cases across the four seeded root-cause classes. Run the optional Ollama planner and diagnoser over that set with:
-
-```powershell
-$env:INCIDENT_LLM_ENABLED = "true"
-$env:OLLAMA_MODEL = "qwen2.5:3b"
-$env:PYTHONPATH = "src"
-python -m incidentpilot.model_evaluation
-```
+For the actual local CPU Qwen path, install `requirements-model.txt`, then:
 
 ```bash
-INCIDENT_LLM_ENABLED=true OLLAMA_MODEL=qwen2.5:3b PYTHONPATH=src python -m incidentpilot.model_evaluation
+INCIDENT_LLM_ENABLED=true INCIDENT_MODEL_BACKEND=transformers PYTHONPATH=src python -m incidentpilot.model_evaluation --cases data/model-eval-stress-8.jsonl --output reports/transformers-heldout.json
 ```
 
-The report separates valid planner responses, diagnosis coverage, evidence-reference validity, model-only root-cause accuracy, and fallback rate. Accuracy excludes fallback diagnoses. This is a synthetic, four-class diagnostic check; it is not a production incident benchmark. The model evaluation requires a running Ollama server and is not part of CI.
+The model revision is pinned, downloads are large, and CPU inference is slow. Set `HF_HOME` to reuse a cache. In PowerShell set `$env:INCIDENT_LLM_ENABLED="true"`, `$env:INCIDENT_MODEL_BACKEND="transformers"`, `$env:PYTHONPATH="src"`, then run the same Python command.
 
-## Safety boundary
+Ollama remains available with `INCIDENT_MODEL_BACKEND=ollama`, `INCIDENT_LLM_ENABLED=true`, and a running `OLLAMA_URL` / `OLLAMA_MODEL`. Its generated JSON is schema-validated. Ollama scores for a different model are not implied by the Transformers report.
 
-The bundled environment is a simulator. Its tools cannot connect to cloud accounts, clusters, databases, or production APIs. Approval records a decision under an unverified reviewer label and a simulated outcome; it does not execute infrastructure changes. The evaluator checks the read-only tool boundary, evidence references, and approval-gate presence. Scripted scenario diagnoses are excluded from model accuracy, and the checks do not estimate recovery time or production incident resolution quality. In-process request limits reset on restart and are a demo safeguard rather than shared protection across proxy or multi-worker deployments.
+## Deployment and verification
 
-Build and run with a persistent database volume:
-
-```powershell
+```bash
 docker build -t incidentpilot .
-docker run --rm -p 8000:8000 -v incidentpilot-data:/app/data/runtime incidentpilot
+docker run --rm -p 8000:8000 incidentpilot
 ```
 
-For Ollama running on the host, set `OLLAMA_URL=http://host.docker.internal:11434` in the container environment.
+The default image needs scikit-learn, not a language-model server. Set `INCIDENT_DB` to persist SQLite outside an ephemeral container. The saved walkthrough contains four recorded investigations; selecting them does not call a backend. It exposes the saved benchmark and policy checks; approval controls explicitly require the live simulator.
 
-The repository includes a Render Blueprint at `render.yaml` for the simulator-only web demo. It leaves the Ollama model disabled because a local model service is not part of that deployment.
+Tests cover empty/unknown references, unknown tools, conflicting diagnosis/action, independence from hidden scenario labels, classifier prompt isolation, and a full create/reject/replay API journey. Auth, live telemetry connectors, production mutations and real-world root-cause accuracy are outside this demo's scope.
 
-## Extending the system
+Model: [Qwen2.5-0.5B-Instruct](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct). Training and evaluation fixtures are original synthetic examples, not private operational logs.
 
-Add a new scenario to `data/scenarios.json` with logs, metrics, a runbook, an expected diagnosis, and a proposed action. Add the matching labeled case to `data/eval.json`. A production integration would need authenticated read-only adapters, identity and role checks, an auditable approval system, idempotent change APIs, and explicit rollout and rollback policies before any write tool could exist.
+## Reproduce
+
+Python 3.12 is recommended. From the repository root:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt -r requirements-dev.txt
+PYTHONPATH=src uvicorn incidentpilot.api:app --reload
+```
+
+PowerShell:
+
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt -r requirements-dev.txt
+$env:PYTHONPATH = "src"
+uvicorn incidentpilot.api:app --reload
+```
+
+Open http://127.0.0.1:8000. Run regressions with `PYTHONPATH=src python -m pytest -q` (PowerShell: set `PYTHONPATH` as above, then `python -m pytest -q`). GitHub Actions runs this suite, builds the Docker image and checks container health/frontend assets on pushes and pull requests.
+
+The frontend is plain JavaScript modules. `ui.js` owns requests, cancellation, timeouts, feedback and escaping; `app.js` owns application state and rendering. Requests use per-operation abort controllers. Static saved outputs are in `static/sample.json`; they never masquerade as fresh model responses.

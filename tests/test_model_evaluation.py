@@ -8,7 +8,10 @@ from incidentpilot import model_evaluation
 def test_model_evaluation_separates_accuracy_from_fallback(monkeypatch):
     monkeypatch.setattr(model_evaluation, "LLM_ENABLED", True)
     monkeypatch.setattr(model_evaluation, "OLLAMA_MODEL", "qwen2.5:3b")
-    monkeypatch.setattr(model_evaluation, "plan_tools", lambda scenario: (["read_logs"], "ollama"))
+    monkeypatch.setattr(model_evaluation, "MODEL_BACKEND", "ollama")
+    monkeypatch.setattr(
+        model_evaluation, "plan_tools", lambda scenario: (["read_logs"], "ollama")
+    )
     monkeypatch.setattr(
         model_evaluation,
         "diagnose_with_model",
@@ -24,7 +27,9 @@ def test_model_evaluation_separates_accuracy_from_fallback(monkeypatch):
             "id": "case-1",
             "summary": "Requests wait on inventory.",
             "expected_root_cause": "inventory_dependency_latency",
-            "evidence": [{"tool": "read_logs", "items": [{"id": "log-1", "message": "timeout"}]}],
+            "evidence": [
+                {"tool": "read_logs", "items": [{"id": "log-1", "message": "timeout"}]}
+            ],
         }
     ]
 
@@ -39,17 +44,21 @@ def test_model_evaluation_separates_accuracy_from_fallback(monkeypatch):
 
 def test_model_evaluation_requires_an_enabled_local_model(monkeypatch):
     monkeypatch.setattr(model_evaluation, "LLM_ENABLED", False)
+    monkeypatch.setattr(model_evaluation, "MODEL_BACKEND", "ollama")
 
     try:
         model_evaluation.run([{"id": "case-1"}])
     except RuntimeError as error:
         assert "INCIDENT_LLM_ENABLED=true" in str(error)
     else:
-        raise AssertionError("Model evaluation should refuse to silently score policy fallback.")
+        raise AssertionError(
+            "Model evaluation should refuse to silently score policy fallback."
+        )
 
 
 def test_model_evaluation_cli_explains_missing_model(monkeypatch, capsys):
     monkeypatch.setattr(model_evaluation, "LLM_ENABLED", False)
+    monkeypatch.setattr(model_evaluation, "MODEL_BACKEND", "ollama")
     monkeypatch.setattr(sys, "argv", ["incidentpilot-model-evaluation"])
 
     with pytest.raises(SystemExit) as error:

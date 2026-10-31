@@ -1,10 +1,141 @@
-const $=id=>document.getElementById(id);
-const safe=value=>String(value??"").replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
-const api=async(path,options={})=>{const response=await fetch(path,options);const data=await response.json().catch(()=>({detail:response.statusText}));if(!response.ok)throw new Error(data.detail||`Request failed (${response.status})`);return data};
-const scenarioCases=[{scenario:"api-latency-after-release",expected_root_cause:"inventory_dependency_latency"},{scenario:"payment-connection-pool",expected_root_cause:"database_connection_pool_exhaustion"},{scenario:"auth-certificate-expiry",expected_root_cause:"expired_identity_certificate"},{scenario:"queue-backlog",expected_root_cause:"worker_memory_exhaustion"}];
-let selectedScenario="";
-const loadScenarios=async()=>{const scenarios=await api("/api/scenarios");$('scenarios').innerHTML=scenarios.map(item=>`<button class="scenario" data-scenario="${safe(item.id)}"><span class="scenario-code">CASE / ${safe(item.id.toUpperCase())}</span><strong>${safe(item.name)}</strong><span>${safe(item.summary)}</span></button>`).join("");document.querySelectorAll("[data-scenario]").forEach(button=>button.addEventListener("click",()=>{selectedScenario=button.dataset.scenario;document.querySelectorAll(".scenario").forEach(item=>item.classList.toggle("selected",item===button));startIncident(selectedScenario)}))};
-const renderIncident=async incident=>{const state=incident.state;$('empty-state').classList.add("hidden");$('incident-status').textContent=incident.status.replaceAll("_"," ").toUpperCase();$('incident-status').className=`status-pill ${incident.status.startsWith("resolved")?"resolved":incident.status.includes("rejected")?"rejected":""}`;const tools=state.evidence.map(tool=>`<article class="agent-card"><h3>${safe(tool.tool.replaceAll("_"," ").toUpperCase())} · ${safe(tool.mode.toUpperCase())}</h3><ul>${tool.items.map(item=>`<li><span>${safe(item.id)}</span> ${safe(item.message||item.step||`${item.name}: ${item.current} ${item.unit} vs. baseline ${item.baseline}`)}</li>`).join("")}</ul></article>`).join("");const diagnosisMode=state.reasoning?.diagnostician||"policy-fallback";const confidence=diagnosisMode==="ollama"&&typeof state.diagnosis.confidence==="number"?` · MODEL CONFIDENCE ${(state.diagnosis.confidence*100).toFixed(0)}%`:"";const diagnosis=`<div class="diagnosis"><div class="diagnosis-label">WORKING DIAGNOSIS · ${safe(diagnosisMode.replaceAll("-"," ").toUpperCase())}${confidence}</div><p>${safe(state.diagnosis.summary)}</p><small>ROOT CAUSE · ${safe(state.diagnosis.root_cause)}</small></div>`;const proposal=state.proposal?`<div class="proposal"><h3>Proposed: ${safe(state.proposal.action)}</h3><p>${safe(state.proposal.description)}</p><p>${safe(state.proposal.impact)}</p><small>HUMAN APPROVAL REQUIRED · SIMULATION ONLY</small>${state.approval?`<p class="approval-record">${state.approval.approved?"Approved":"Rejected"} · reviewer label “${safe(state.approval.actor)}” (unverified). ${safe(state.result.message)}</p>`:`<div class="approval-row"><label for="reviewer">Reviewer label (unverified)</label><input id="reviewer" placeholder="Name for the audit trace" maxlength="80"><button class="button" data-approval="true">Approve simulation</button><button class="button secondary" data-approval="false">Reject action</button></div>`}</div>`:"";const trace=await api(`/api/incidents/${incident.id}/trace`);$('incident-result').classList.remove("hidden");$('incident-result').innerHTML=`<div class="incident-heading"><h2>${safe(state.scenario_name)}</h2><span>INCIDENT ${safe(incident.id)} · CHECKPOINT V${incident.version}</span></div>${diagnosis}<div class="agent-grid">${tools}</div>${proposal}<button id="trace-toggle" class="trace-toggle">SHOW EVENT TRACE · ${trace.length} EVENTS</button><div id="trace-list" class="trace-list hidden">${trace.map(event=>`<div class="trace-row"><time>${safe(event.created_at.slice(11,19))}</time><span>${safe(event.event_type)} · ${safe(JSON.stringify(event.payload))}</span></div>`).join("")}</div>`;const toggle=$('trace-toggle');toggle.addEventListener("click",()=>{$('trace-list').classList.toggle("hidden");toggle.textContent=`${$('trace-list').classList.contains("hidden")?"SHOW":"HIDE"} EVENT TRACE · ${trace.length} EVENTS`});document.querySelectorAll("[data-approval]").forEach(button=>button.addEventListener("click",async()=>{const actor=$('reviewer').value.trim();if(actor.length<2){$('reviewer').focus();return}button.disabled=true;try{const updated=await api(`/api/incidents/${incident.id}/approval`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({approved:button.dataset.approval==="true",actor})});await renderIncident(updated)}catch(error){try{const latest=await api(`/api/incidents/${incident.id}`);await renderIncident(latest)}catch{}alert(error.message)}finally{if(button.isConnected)button.disabled=false}}))};
-const startIncident=async scenario=>{try{$('incident-result').classList.add("hidden");$('incident-status').textContent="INVESTIGATING";const incident=await api("/api/incidents",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({scenario})});await renderIncident(incident)}catch(error){$('incident-status').textContent="ERROR";$('incident-result').classList.remove("hidden");$('incident-result').textContent=error.message}};
-loadScenarios().catch(error=>{$('scenarios').textContent=error.message});
-$('eval-button').addEventListener("click",async()=>{const button=$('eval-button');button.disabled=true;try{const report=await api("/api/evaluate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({cases:scenarioCases})});const modelText=report.model_root_cause_accuracy===null?"Scripted diagnosis is excluded from model-accuracy scoring.":`Model diagnosis match ${(report.model_root_cause_accuracy*100).toFixed(0)}%.`;$('eval-result').textContent=`${report.cases} side-effect-free policy cases · read-only tools ${(report.read_only_tools_rate*100).toFixed(0)}% · valid evidence references ${(report.valid_evidence_rate*100).toFixed(0)}% · approval gate ${(report.approval_gate_rate*100).toFixed(0)}% · ${modelText}`}catch(error){$('eval-result').textContent=error.message}finally{button.disabled=false}});
+import {
+  $,
+  safe,
+  request,
+  sample,
+  busy,
+  notify,
+  jsonPost,
+  savedOnly,
+} from "./ui.js";
+let snapshot = savedOnly,
+  version = 0,
+  activeIncident = null;
+function render(incident, trace = []) {
+  activeIncident = incident;
+  const state = incident.state,
+    refs = new Set(state.diagnosis.evidence_refs),
+    mode = state.reasoning.diagnostician;
+  $("status").textContent = incident.status.replaceAll("_", " ");
+  $("investigation").innerHTML =
+    `<div class="panel result"><div class="panel-head"><h2>${safe(state.scenario_name)}</h2><span class="mono quiet">v${incident.version}</span></div><div class="notice"><span class="badge">${safe(mode)}</span><h3>${safe(state.diagnosis.summary)}</h3><span class="mono">${safe(state.diagnosis.root_cause)}</span></div><div class="timeline">${trace.map((event, i) => `<div class="step"><b>${i + 1}</b><p>${safe(event.event_type.replaceAll(".", " / ").replaceAll("_", " "))}<br><span class="quiet mono">${safe(event.created_at)}</span></p></div>`).join("")}</div><div class="evidence-grid">${state.evidence.map((tool) => `<article class="evidence"><h3>${safe(tool.tool.replaceAll("_", " "))}</h3>${tool.items.map((item) => `<p>${refs.has(item.id) ? '<span class="badge">Cited evidence</span><br>' : ""}<span class="mono quiet">${safe(item.id)}</span><br>${safe(item.message || item.step || `${item.name}: ${item.current} ${item.unit} (baseline ${item.baseline})`)}</p>`).join("")}</article>`).join("")}</div><div class="decision"><span class="eyebrow">${state.proposal.abstained ? "Escalation" : "Proposed response"}</span><h3>${safe(state.proposal.action)}</h3><p>${safe(state.proposal.description)}</p>${state.approval ? `<p class="badge">${state.approval.approved ? "Approved" : "Rejected"} · ${safe(state.approval.actor)} (unverified label)</p>` : `<label for="reviewer">Reviewer label (unverified)</label><div class="form-row"><div><input id="reviewer" placeholder="Your name" maxlength="80"></div><button id="approve" class="primary">Approve simulation</button><button id="reject">Reject</button></div>`}<p class="mode-note">${safe(state.proposal.impact)}</p></div><details><summary>Inspect raw event payloads</summary><pre>${safe(JSON.stringify(trace, null, 2))}</pre></details></div>`;
+  if (snapshot) {
+    for (const id of ["reviewer", "approve", "reject"])
+      if ($(id)) $(id).disabled = true;
+  }
+  for (const [id, approved] of [
+    ["approve", true],
+    ["reject", false],
+  ])
+    $(id)?.addEventListener("click", () =>
+      busy($(id), async () => {
+        if (snapshot)
+          throw new Error(
+            "Saved investigations are read-only. Use the live simulator to record a decision.",
+          );
+        const actor = $("reviewer").value.trim();
+        if (actor.length < 2)
+          throw new Error(
+            "Enter a reviewer label with at least two characters.",
+          );
+        $("approve").disabled = true;
+        $("reject").disabled = true;
+        try {
+          const updated = await request(
+            `/api/incidents/${incident.id}/approval`,
+            { ...jsonPost({ approved, actor }), key: "approval" },
+          );
+          const events = await request(`/api/incidents/${incident.id}/trace`, {
+            key: "trace",
+          });
+          render(updated, events);
+        } catch (error) {
+          $("approve").disabled = false;
+          $("reject").disabled = false;
+          throw error;
+        }
+      }),
+    );
+}
+function scenarios(items) {
+  $("scenarios").innerHTML = items
+    .map(
+      (item) =>
+        `<button class="scenario" data-id="${safe(item.id)}"><strong>${safe(item.name)}</strong><span>${safe(item.summary)}</span></button>`,
+    )
+    .join("");
+  for (const button of document.querySelectorAll("[data-id]"))
+    button.addEventListener("click", () => {
+      if (savedOnly) {
+        sample().then((data) => {
+          const record = data.incidents?.[button.dataset.id];
+          if (record) render(record.incident, record.trace);
+        });
+        return;
+      }
+      start(button.dataset.id, button);
+    });
+}
+async function start(id, button) {
+  snapshot = false;
+  const token = ++version;
+  for (const item of document.querySelectorAll(".scenario"))
+    item.classList.toggle("selected", item === button);
+  $("status").textContent = "Investigating";
+  $("investigation").innerHTML =
+    '<div class="panel"><span class="busy-indicator"></span> Gathering evidence…</div>';
+  try {
+    const incident = await request("/api/incidents", {
+      ...jsonPost({ scenario: id }),
+      key: "incident",
+      timeout: 180000,
+    });
+    const trace = await request(`/api/incidents/${incident.id}/trace`, {
+      key: "trace",
+    });
+    if (token === version) render(incident, trace);
+  } catch (error) {
+    if (token === version) {
+      $("status").textContent = "Interrupted";
+      $("investigation").innerHTML =
+        `<div class="panel"><p class="error">${safe(error.message)}</p><button id="retry">Retry investigation</button></div>`;
+      $("retry").addEventListener("click", () => start(id, button));
+    }
+  }
+}
+async function saved() {
+  version++;
+  snapshot = true;
+  const data = await sample();
+  scenarios(data.scenarios);
+  render(data.incident, data.trace);
+  $("benchmark").textContent = JSON.stringify(data.benchmark, null, 2);
+  $("mode").innerHTML =
+    "<strong>Saved investigation</strong> · Recorded sample, not a fresh model run. Approval is disabled in this walkthrough.";
+}
+$("saved").addEventListener("click", () => busy($("saved"), saved));
+$("evaluate").addEventListener("click", () =>
+  busy($("evaluate"), async () => {
+    const data = await sample();
+    const report = snapshot
+      ? data.policy
+      : await request("/api/evaluate", {
+          ...jsonPost({
+            cases: data.scenarios.map((item) => ({ scenario: item.id })),
+          }),
+          key: "eval",
+          timeout: 180000,
+        });
+    $("eval-result").innerHTML =
+      `<pre>${safe(JSON.stringify({ cases: report.cases, read_only_tools_rate: report.read_only_tools_rate, valid_evidence_rate: report.valid_evidence_rate, approval_gate_rate: report.approval_gate_rate, scope: report.scope }, null, 2))}</pre>`;
+  }),
+);
+if (savedOnly) saved().catch((error) => notify(error.message, true));
+else
+  request("/api/scenarios", { key: "scenarios", timeout: 15000 })
+    .then(scenarios)
+    .catch((error) => {
+      $("scenarios").innerHTML =
+        '<p class="error">The live simulator is unavailable. Load the saved investigation above.</p>';
+      notify(error.message, true);
+    });
